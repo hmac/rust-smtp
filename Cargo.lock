@@ -1,0 +1,4 @@
+[root]
+name = "rust-smtp"
+version = "0.1.0"
+

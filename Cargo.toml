@@ -1,0 +1,4 @@
+[package]
+name = "rust-smtp"
+version = "0.1.0"
+authors = ["Harry Maclean <harryjmaclean@googlemail.com>"]
