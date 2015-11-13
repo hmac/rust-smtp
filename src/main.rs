@@ -19,10 +19,8 @@ fn main() {
     drop(listener);
 }
 
-fn handle_request(stream: TcpStream) {
-    println!("{:?}", stream);
-    //let mut buffer = String::new();
-    //try!(stream.read_to_string(&mut buffer));
-    //println!("{:?}", buffer);
-
+fn handle_request(mut stream: TcpStream) {
+    let mut buffer = String::new();
+    stream.read_to_string(&mut buffer);
+    println!("{:?}", buffer);
 }
