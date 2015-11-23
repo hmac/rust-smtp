@@ -10,8 +10,7 @@ pub fn handle_request(mut stream: TcpStream) {
         buf.read_line(&mut request_string);
         let maybe_command = parse_request(&request_string);
         if maybe_command.is_some() {
-            let c = maybe_command.unwrap();
-            match c {
+            match maybe_command.unwrap() {
                 Command::Helo(addr) => {
                     println!("Got HELO from {:?}, sending 250", addr);
                     buf.write("250 Hello ".as_bytes());
@@ -29,8 +28,25 @@ pub fn handle_request(mut stream: TcpStream) {
                     println!("Recipient: {:?}", recipient);
                     buf.write("250 Ok \n".as_bytes());
                     email.to = Some(recipient);
+                },
+                Command::Data => {
+                    let mut body: Vec<String> = Vec::new();
+                    let mut body_string = String::new();
+                    buf.write("354 End data with <CR><LF>.<CR><LF>\n".as_bytes());
+                    buf.flush();
+                    'data: loop {
+                        buf.read_line(&mut body_string);
+                        println!("{:?}", body_string);
+                        if body_string == ".\n" {
+                            println!("Detected end of mail body");
+                            break 'data;
+                        }
+                        body.push(body_string.clone());
+                        buf.flush();
+                        body_string.clear();
+                    }
+                    email.body = Some(body.concat());
                 }
-                _ => {}
             };
         }
         else {
@@ -39,6 +55,9 @@ pub fn handle_request(mut stream: TcpStream) {
         buf.flush();
         request_string.clear();
     };
+}
+
+fn validate_request(command: Command) -> Result<(), ResponseCode> {
 }
 
 fn parse_request(req: &str) -> Option<Command> {
@@ -104,4 +123,11 @@ struct Email {
     to: Option<EmailAddress>,
     from: Option<EmailAddress>,
     body: Option<String>
+}
+
+// Not used yet
+enum ResponseCode {
+    Ok,
+    StartMailInput,
+    CommandUnrecognised
 }
