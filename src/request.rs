@@ -1,8 +1,10 @@
 use std::net::{TcpStream};
 use std::io::{Read, Write, BufReader, BufRead, BufWriter};
 use bufstream::BufStream;
+use store;
 
 pub fn handle_request(mut stream: TcpStream) {
+    let conn = store::open();
     let mut buf = BufStream::new(stream);
     let mut request_string = String::new();
     let mut email = Email {to: None, from: None, body: None};
@@ -40,6 +42,17 @@ pub fn handle_request(mut stream: TcpStream) {
                     body_string.clear();
                 }
                 email.body = Some(body.concat());
+                println!("{:?}", email);
+                match store::save(&conn, &email) {
+                    Ok(rows_updated) => {
+                        println!("Message saved for delivery");
+                        buf.write(ResponseCode::SavedForDelivery.to_string().as_bytes());
+                    },
+                    Err(err) => {
+                        println!("Error saving message: {}", err);
+                        buf.write(ResponseCode::TransactionFailed.to_string().as_bytes());
+                    }
+                };
             },
             Ok(Command::Terminate) => break,
             Err(response_code) => {
@@ -102,7 +115,7 @@ fn parse_smtp_address(req: &str) -> Option<ServerAddress> {
     Some(req.to_string())
 }
 
-type EmailAddress = String;
+pub type EmailAddress = String;
 type ServerAddress  = String;
 
 enum Command {
@@ -113,10 +126,11 @@ enum Command {
     Terminate            // client has disconnected
 }
 
-struct Email {
-    to: Option<EmailAddress>,
-    from: Option<EmailAddress>,
-    body: Option<String>
+#[derive(Debug)]
+pub struct Email {
+    pub to: Option<EmailAddress>,
+    pub from: Option<EmailAddress>,
+    pub body: Option<String>
 }
 
 #[derive(Debug)]
@@ -125,17 +139,21 @@ enum ResponseCode {
     Hello,
     StartMailInput,
     CommandUnrecognised,
-    ArgumentError
+    ArgumentError,
+    TransactionFailed,
+    SavedForDelivery
 }
 
 impl ToString for ResponseCode {
     fn to_string(&self) -> String {
         match self {
-            &ResponseCode::Ok => "250 Requested mail action completed.".to_string(),
-            &ResponseCode::Hello => "250 rust-smtp at your service.".to_string(),
-            &ResponseCode::StartMailInput => "354 End data with <CR><LF>.<CR><LF>".to_string(),
-            &ResponseCode::CommandUnrecognised => "500 Syntax error, command unrecognised.".to_string(),
-            &ResponseCode::ArgumentError => "501 Syntax error in command arguments".to_string()
+            &ResponseCode::Ok => "250 Requested mail action completed.\n".to_string(),
+            &ResponseCode::Hello => "250 rust-smtp at your service.\n".to_string(),
+            &ResponseCode::StartMailInput => "354 End data with <CR><LF>.<CR><LF>\n".to_string(),
+            &ResponseCode::CommandUnrecognised => "500 Syntax error, command unrecognised.\n".to_string(),
+            &ResponseCode::ArgumentError => "501 Syntax error in command arguments\n".to_string(),
+            &ResponseCode::TransactionFailed => "554 Transaction failed\n".to_string(),
+            &ResponseCode::SavedForDelivery => "554 Saved for delivery\n".to_string()
         }
     }
 }
@@ -156,9 +174,11 @@ impl<S: Read + Write> WriteLine for BufStream<S> {
             ResponseCode::Hello => "250 rust-smtp at your service.",
             ResponseCode::StartMailInput => "354 End data with <CR><LF>.<CR><LF>",
             ResponseCode::CommandUnrecognised => "500 Syntax error, command unrecognised.",
-            ResponseCode::ArgumentError => "501 Syntax error in command arguments"
+            ResponseCode::ArgumentError => "501 Syntax error in command arguments",
+            ResponseCode::TransactionFailed => "554 Transaction failed",
+            ResponseCode::SavedForDelivery => "554 Saved for delivery"
         };
         self.write(response.as_bytes());
-        self.write("\n");
+        self.write("\n".as_bytes());
     }
 }
