@@ -44,6 +44,7 @@ pub fn handle_request(mut stream: TcpStream) {
             Ok(Command::Terminate) => break,
             Err(response_code) => {
                 buf.write(&response_code.to_string().as_bytes());
+                buf.write("\n".as_bytes());
                 println!("Command not recognised: {:?}", request_string);
             }
         }
