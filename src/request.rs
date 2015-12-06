@@ -159,6 +159,6 @@ impl<S: Read + Write> WriteLine for BufStream<S> {
             ResponseCode::ArgumentError => "501 Syntax error in command arguments"
         };
         self.write(response.as_bytes());
-        self.write("\n");
+        self.write("\n".as_bytes());
     }
 }
