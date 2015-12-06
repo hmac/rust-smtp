@@ -9,6 +9,16 @@ pub fn handle_request(mut stream: TcpStream) {
     loop {
         buf.read_line(&mut request_string);
         match parse_request(&request_string) {
+            Ok(Command::Help) => {
+                buf.write(ResponseCode::Help.to_string().as_bytes());
+                buf.write("Possible commands:\n".to_string().as_bytes());
+                buf.write("\t HELP\tPrint this usage message\n".to_string().as_bytes());
+                buf.write("\t HELO\tSay hi\n".to_string().as_bytes());
+                buf.write("\t MAIL\tSpecify from address\n".to_string().as_bytes());
+                buf.write("\t RCPT\tSpecify recipient address\n".to_string().as_bytes());
+                buf.write("\t DATA\tSpecify data to email\n".to_string().as_bytes());
+                buf.write("\t QUIT\tQuit the application\n".to_string().as_bytes());
+            },
             Ok(Command::Helo(addr)) => {
                 println!("Got HELO from {:?}", addr);
                 buf.respond(ResponseCode::Hello);
@@ -60,6 +70,7 @@ fn parse_request(req: &str) -> Result<Command, ResponseCode> {
     if req.len() < 4 { return Err(ResponseCode::CommandUnrecognised) };
     let command_str = &req[0..4];
     match command_str {
+        "HELP" => Ok(Command::Help),
         "HELO" => Ok(Command::Helo(req[5..].to_string().replace("\n", ""))),
         "MAIL" => {
             let addr = parse_from_address(&req[5..]);
@@ -111,6 +122,7 @@ enum Command {
     Helo(ServerAddress), // contains address of connecting server
     Mail(EmailAddress),  // contains from address
     Rcpt(EmailAddress),  // contains to address
+    Help,                // print list of commands
     Data,                // mail message to follow
     Terminate            // client has disconnected
 }
@@ -124,6 +136,7 @@ struct Email {
 #[derive(Debug)]
 enum ResponseCode {
     Ok,
+    Help,
     Hello,
     StartMailInput,
     CommandUnrecognised,
@@ -134,6 +147,7 @@ impl ToString for ResponseCode {
     fn to_string(&self) -> String {
         match self {
             &ResponseCode::Ok => "250 Requested mail action completed.".to_string(),
+            &ResponseCode::Help => "250 Printing usage.".to_string(),
             &ResponseCode::Hello => "250 rust-smtp at your service.".to_string(),
             &ResponseCode::StartMailInput => "354 End data with <CR><LF>.<CR><LF>.".to_string(),
             &ResponseCode::CommandUnrecognised => "500 Syntax error, command unrecognised.".to_string(),
@@ -155,6 +169,7 @@ impl<S: Read + Write> WriteLine for BufStream<S> {
     fn respond(&mut self, code: ResponseCode) {
         let response = match code {
             ResponseCode::Ok => "250 Requested mail action completed.",
+            ResponseCode::Help => "250 Printing usage.",
             ResponseCode::Hello => "250 rust-smtp at your service.",
             ResponseCode::StartMailInput => "354 End data with <CR><LF>.<CR><LF>.",
             ResponseCode::CommandUnrecognised => "500 Syntax error, command unrecognised.",
