@@ -75,6 +75,7 @@ fn parse_request(req: &str) -> Result<Command, ResponseCode> {
             }
         },
         "DATA" => Ok(Command::Data),
+        "QUIT" => Ok(Command::Terminate),
         _      => Err(ResponseCode::CommandUnrecognised)
     }
 }
