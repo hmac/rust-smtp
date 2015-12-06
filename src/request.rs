@@ -59,7 +59,7 @@ fn parse_request(req: &str) -> Result<Command, ResponseCode> {
     if req.len() < 4 { return Err(ResponseCode::CommandUnrecognised) };
     let command_str = &req[0..4];
     match command_str {
-        "HELO" => Ok(Command::Helo(req[5..].to_string())),
+        "HELO" => Ok(Command::Helo(req[5..].to_string().replace("\n", ""))),
         "MAIL" => {
             let addr = parse_from_address(&req[5..]);
             match addr {
