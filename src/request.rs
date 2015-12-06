@@ -133,9 +133,9 @@ impl ToString for ResponseCode {
         match self {
             &ResponseCode::Ok => "250 Requested mail action completed.".to_string(),
             &ResponseCode::Hello => "250 rust-smtp at your service.".to_string(),
-            &ResponseCode::StartMailInput => "354 End data with <CR><LF>.<CR><LF>".to_string(),
+            &ResponseCode::StartMailInput => "354 End data with <CR><LF>.<CR><LF>.".to_string(),
             &ResponseCode::CommandUnrecognised => "500 Syntax error, command unrecognised.".to_string(),
-            &ResponseCode::ArgumentError => "501 Syntax error in command arguments".to_string()
+            &ResponseCode::ArgumentError => "501 Syntax error in command arguments.".to_string()
         }
     }
 }
@@ -154,9 +154,9 @@ impl<S: Read + Write> WriteLine for BufStream<S> {
         let response = match code {
             ResponseCode::Ok => "250 Requested mail action completed.",
             ResponseCode::Hello => "250 rust-smtp at your service.",
-            ResponseCode::StartMailInput => "354 End data with <CR><LF>.<CR><LF>",
+            ResponseCode::StartMailInput => "354 End data with <CR><LF>.<CR><LF>.",
             ResponseCode::CommandUnrecognised => "500 Syntax error, command unrecognised.",
-            ResponseCode::ArgumentError => "501 Syntax error in command arguments"
+            ResponseCode::ArgumentError => "501 Syntax error in command arguments."
         };
         self.write(response.as_bytes());
         self.write("\n".as_bytes());
