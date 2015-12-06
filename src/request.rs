@@ -26,17 +26,20 @@ pub fn handle_request(mut stream: TcpStream) {
             Ok(Command::Mail(from)) => {
                 println!("Got MAIL from {:?}", from);
                 buf.write(ResponseCode::Ok.to_string().as_bytes());
+                buf.write("\n".to_string().as_bytes());
                 email.from = Some(from);
             },
             Ok(Command::Rcpt(recipient)) => {
                 println!("Got RCPT {:?}", recipient);
                 buf.write(ResponseCode::Ok.to_string().as_bytes());
+                buf.write("\n".to_string().as_bytes());
                 email.to = Some(recipient);
             },
             Ok(Command::Data) => {
                 let mut body: Vec<String> = Vec::new();
                 let mut body_string = String::new();
                 buf.write(ResponseCode::StartMailInput.to_string().as_bytes());
+                buf.write("\n".to_string().as_bytes());
                 buf.flush();
                 'data: loop {
                     buf.read_line(&mut body_string);
