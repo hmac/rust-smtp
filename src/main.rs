@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate nom;
 extern crate bufstream;
 extern crate rusqlite;
 use std::net::{TcpListener, TcpStream};
@@ -6,6 +8,8 @@ use std::thread;
 
 mod request;
 mod store;
+mod parse_request;
+mod smtp_request;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:33333").unwrap();

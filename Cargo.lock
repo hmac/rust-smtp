@@ -3,6 +3,7 @@ name = "rust-smtp"
 version = "0.1.0"
 dependencies = [
  "bufstream 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nom 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusqlite 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -43,6 +44,11 @@ dependencies = [
  "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "pkg-config 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "nom"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "pkg-config"
