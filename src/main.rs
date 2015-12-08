@@ -9,7 +9,7 @@ use std::thread;
 mod request;
 mod store;
 mod parse_request;
-mod smtp_request;
+mod command;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:33333").unwrap();
