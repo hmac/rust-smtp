@@ -17,7 +17,10 @@ enum Command<'a> {
     Terminate            // client has disconnected
 }
 
-named!(data, tag!("DATA"));
+named!(data <&[u8], Command>,
+       chain!(
+           tag!("DATA"),
+           || { Command::Data }));
 
 named!(helo <&[u8], Command>,
     chain!(
@@ -58,9 +61,26 @@ named!(rcpt <&[u8], Command>,
    )
 );
 
+named!(command <&[u8], Command>,
+    alt!(
+        helo |
+        mail |
+        rcpt |
+        data
+    )
+);
+
 #[test]
 fn test_parser() {
     assert_eq!(mail(&b"MAIL gnu\n"[..]), IResult::Done(&b""[..], Command::Mail("gnu")));
     assert_eq!(helo(&b"HELO gnu\n"[..]), IResult::Done(&b""[..], Command::Helo("gnu")));
     assert_eq!(rcpt(&b"RCPT gnu\n"[..]), IResult::Done(&b""[..], Command::Rcpt("gnu")));
+    assert_eq!(
+        command(&b"HELO smtp.gnu.org\n"[..]),
+        IResult::Done(&b""[..], Command::Helo("smtp.gnu.org"))
+    );
+    assert_eq!(
+        command(&b"MAIL FROM:<bill@gnu.org>\n"[..]),
+        IResult::Done(&b""[..], Command::Mail("FROM:<bill@gnu.org>"))
+    );
 }
