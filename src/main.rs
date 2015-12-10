@@ -2,8 +2,7 @@
 extern crate nom;
 extern crate bufstream;
 extern crate rusqlite;
-use std::net::{TcpListener, TcpStream};
-use std::io::{Read, Write};
+use std::net::{TcpListener};
 use std::thread;
 
 mod request;

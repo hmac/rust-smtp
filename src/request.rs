@@ -1,17 +1,17 @@
 use std::net::{TcpStream};
-use std::io::{Read, Write, BufReader, BufRead, BufWriter};
+use std::io::{Read, Write, BufRead};
 use bufstream::BufStream;
 use store;
 use parse_request;
-use command::{Command, EmailAddress, ServerAddress};
+use command::{Command, EmailAddress};
 
-pub fn handle_request(mut stream: TcpStream) {
+pub fn handle_request(stream: TcpStream) {
     let conn = store::open();
     let mut buf = BufStream::new(stream);
     let mut request_string = String::new();
     let mut email = Email {to: None, from: None, body: None};
     loop {
-        buf.read_line(&mut request_string);
+        buf.read_line(&mut request_string).unwrap();
         match parse_request::parse(&request_string) {
             Ok(Command::Helo(addr)) => {
                 println!("Got HELO from {:?}", addr);
@@ -24,45 +24,45 @@ pub fn handle_request(mut stream: TcpStream) {
             },
             Ok(Command::Rcpt(recipient)) => {
                 println!("Got RCPT {:?}", recipient);
-                buf.write(ResponseCode::Ok.to_string().as_bytes());
+                buf.respond(ResponseCode::Ok);
                 email.to = Some(recipient);
             },
             Ok(Command::Data) => {
                 let mut body: Vec<String> = Vec::new();
                 let mut body_string = String::new();
-                buf.write(ResponseCode::StartMailInput.to_string().as_bytes());
-                buf.flush();
+                buf.respond(ResponseCode::StartMailInput);
+                buf.flush().unwrap();
                 'data: loop {
-                    buf.read_line(&mut body_string);
+                    buf.read_line(&mut body_string).unwrap();
                     println!("{:?}", body_string);
                     if body_string == ".\n" {
                         println!("Detected end of mail body");
                         break 'data;
                     }
                     body.push(body_string.clone());
-                    buf.flush();
+                    buf.flush().unwrap();
                     body_string.clear();
                 }
                 email.body = Some(body.concat());
                 println!("{:?}", email);
                 match store::save(&conn, &email) {
-                    Ok(rows_updated) => {
+                    Ok(_) => {
                         println!("Message saved for delivery");
-                        buf.write(ResponseCode::SavedForDelivery.to_string().as_bytes());
+                        buf.respond(ResponseCode::SavedForDelivery);
                     },
                     Err(err) => {
                         println!("Error saving message: {}", err);
-                        buf.write(ResponseCode::TransactionFailed.to_string().as_bytes());
+                        buf.respond(ResponseCode::TransactionFailed);
                     }
                 };
             },
             Ok(Command::Terminate) => {},
-            Err(code) => {
-                buf.write(ResponseCode::CommandUnrecognised.to_string().as_bytes());
+            Err(_) => {
+                buf.respond(ResponseCode::CommandUnrecognised);
                 println!("Command not recognised: {:?}", request_string);
             }
         }
-        buf.flush();
+        buf.flush().unwrap();
         request_string.clear();
     };
 }
@@ -107,8 +107,7 @@ trait WriteLine {
 
 impl<S: Read + Write> WriteLine for BufStream<S> {
     fn write_line(&mut self, data: &str) {
-        self.write(data.as_bytes());
-        //self.write("\n".as_bytes());
+        self.write(data.as_bytes()).unwrap();
     }
     fn respond(&mut self, code: ResponseCode) {
         let response = match code {
