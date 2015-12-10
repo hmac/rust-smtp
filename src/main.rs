@@ -21,7 +21,7 @@ fn main() {
                     request::handle_request(stream)
                 });
             }
-            Err(e) => { println!("connection failed"); }
+            Err(_) => { println!("connection failed"); }
         }
     }
 

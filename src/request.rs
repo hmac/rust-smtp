@@ -12,15 +12,14 @@ pub fn handle_request(mut stream: TcpStream) {
     let mut email = Email {to: None, from: None, body: None};
     loop {
         buf.read_line(&mut request_string);
-        let command = parse_request::parse(&request_string);
-        match command {
+        match parse_request::parse(&request_string) {
             Ok(Command::Helo(addr)) => {
                 println!("Got HELO from {:?}", addr);
                 buf.respond(ResponseCode::Hello);
             },
             Ok(Command::Mail(from)) => {
                 println!("Got MAIL from {:?}", from);
-                buf.write(ResponseCode::Ok.to_string().as_bytes());
+                buf.respond(ResponseCode::Ok);
                 email.from = Some(from);
             },
             Ok(Command::Rcpt(recipient)) => {
@@ -57,9 +56,9 @@ pub fn handle_request(mut stream: TcpStream) {
                     }
                 };
             },
-            Ok(Command::Terminate) => break,
-            Err(response_code) => {
-                buf.write(&response_code.to_string().as_bytes());
+            Ok(Command::Terminate) => {},
+            Err(code) => {
+                buf.write(ResponseCode::CommandUnrecognised.to_string().as_bytes());
                 println!("Command not recognised: {:?}", request_string);
             }
         }
@@ -68,60 +67,11 @@ pub fn handle_request(mut stream: TcpStream) {
     };
 }
 
-//fn parse_request(req: &str) -> Result<Command, ResponseCode> {
-    //// The command should be a 4 character string like HELO or MAIL
-    //// It is followed by a space, then any data
-    //if req.len() == 0 { return Ok(Command::Terminate) }
-    //if req.len() < 4 { return Err(ResponseCode::CommandUnrecognised) };
-    //let command_str = &req[0..4];
-    //match command_str {
-        //"HELO" => Ok(Command::Helo(req[5..].to_string())),
-        //"MAIL" => {
-            //let addr = parse_from_address(&req[5..]);
-            //match addr {
-                //Some(address) => Ok(Command::Mail(address)),
-                //None          => Err(ResponseCode::ArgumentError)
-            //}
-        //},
-        //"RCPT" => {
-            //let addr = parse_to_address(&req[5..]);
-            //match addr {
-                //Some(address) => Ok(Command::Rcpt(address)),
-                //None          => Err(ResponseCode::ArgumentError)
-            //}
-        //},
-        //"DATA" => Ok(Command::Data),
-        //_      => Err(ResponseCode::CommandUnrecognised)
-    //}
-//}
-
-//fn parse_from_address(req: &str) -> Option<EmailAddress> {
-    //// Expects "FROM:<address@domain.com>"
-    //let prefix = &req[0..5];
-    //match prefix {
-        //"FROM:" => Some(req[5..].to_string()),
-        //_       => None
-    //}
-//}
-
-//fn parse_to_address(req: &str) -> Option<EmailAddress> {
-    //// Expects "TO:<address@domain.com>"
-    //let prefix = &req[0..3];
-    //match prefix {
-        //"TO:" => Some(req[3..].to_string()),
-        //_     => None
-    //}
-//}
-
-//fn parse_smtp_address(req: &str) -> Option<ServerAddress> {
-    //// Expects "address@domain.com"
-    //Some(req.to_string())
-//}
 
 #[derive(Debug)]
-pub struct Email<'a> {
-    pub to: Option<EmailAddress<'a>>,
-    pub from: Option<EmailAddress<'a>>,
+pub struct Email {
+    pub to: Option<EmailAddress>,
+    pub from: Option<EmailAddress>,
     pub body: Option<String>
 }
 
@@ -170,7 +120,7 @@ impl<S: Read + Write> WriteLine for BufStream<S> {
             ResponseCode::TransactionFailed => "554 Transaction failed",
             ResponseCode::SavedForDelivery => "554 Saved for delivery"
         };
-        self.write(response.as_bytes());
-        self.write("\n".as_bytes());
+        self.write(response.as_bytes())
+            .and_then( |_| self.write("\n".as_bytes())).unwrap();
     }
 }

@@ -1,4 +1,4 @@
-use nom::{IResult, digit, multispace, space, line_ending, not_line_ending, crlf};
+use nom::{IResult, space, not_line_ending, crlf};
 use nom::IResult::*;
 
 use std::str;
@@ -20,7 +20,7 @@ named!(helo <&[u8], Command>,
            str::from_utf8
        )                    ~
        crlf                 ,
-       || { Command::Helo(rest) }
+       || { Command::Helo(rest.to_string()) }
    )
 );
 
@@ -33,7 +33,7 @@ named!(mail <&[u8], Command>,
            str::from_utf8
        )                    ~
        crlf                 ,
-       || { Command::Mail(rest) }
+       || { Command::Mail(rest.to_string()) }
    )
 );
 
@@ -46,7 +46,7 @@ named!(rcpt <&[u8], Command>,
            str::from_utf8
        )                    ~
        crlf                 ,
-       || { Command::Rcpt(rest) }
+       || { Command::Rcpt(rest.to_string()) }
    )
 );
 
@@ -69,9 +69,15 @@ named!(command <&[u8], Command>,
 
 pub fn parse(req: &str) -> Result<Command, u8> {
     match command(req.as_bytes()) {
-        IResult::Error(err) => Err(1),
-        IResult::Incomplete(err) => Err(1),
-        IResult::Done(input, command) => Ok(command)
+        IResult::Error(err) => {
+           println!("{:?}", err);
+           Err(1)
+        },
+        IResult::Incomplete(err) => {
+           println!("{:?}", err);
+           Err(1)
+        },
+        IResult::Done(_, command) => Ok(command)
     }
 }
 
