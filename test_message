@@ -1,9 +1,0 @@
-HELO smtp.gnu.org
-MAIL FROM:<richard@gnu.org>
-RCPT TO:<harry@local>
-DATA
-Hey Harry
-How's it going?
-Cheers,
-Richie S
-.
