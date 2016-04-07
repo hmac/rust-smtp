@@ -1,14 +1,15 @@
-use nom::{IResult, space, not_line_ending, crlf};
-use nom::IResult::*;
+use nom::{IResult, space, not_line_ending};
 
 use std::str;
-use command::{Command};
+use command::{Command, EmailAddress};
+
+named!(rn, alt!(tag!("\r\n") | tag!("\n")));
 
 named!(data <&[u8], Command>,
        chain!(
            tag!("DATA") ~
            space?       ~
-           crlf         ,
+           rn           ,
            || { Command::Data }));
 
 named!(helo <&[u8], Command>,
@@ -19,21 +20,19 @@ named!(helo <&[u8], Command>,
            not_line_ending,
            str::from_utf8
        )                    ~
-       crlf                 ,
+       rn                   ,
        || { Command::Helo(rest.to_string()) }
    )
 );
 
 named!(mail <&[u8], Command>,
     chain!(
-       tag!("MAIL")    ~
+       tag!("MAIL")         ~
        space                ~
-       rest: map_res!(
-           not_line_ending,
-           str::from_utf8
-       )                    ~
-       crlf                 ,
-       || { Command::Mail(rest.to_string()) }
+       tag!("FROM:")        ~
+       address: email_address  ~
+       rn                   ,
+       || { Command::Mail(address) }
    )
 );
 
@@ -41,12 +40,9 @@ named!(rcpt <&[u8], Command>,
     chain!(
        tag!("RCPT")    ~
        space                ~
-       rest: map_res!(
-           not_line_ending,
-           str::from_utf8
-       )                    ~
-       crlf                 ,
-       || { Command::Rcpt(rest.to_string()) }
+       address: email_address ~
+       rn                   ,
+       || { Command::Rcpt(address) }
    )
 );
 
@@ -54,7 +50,7 @@ named!(quit <&[u8], Command>,
     chain!(
         tag!("QUIT") ~
         space?       ~
-        crlf         ,
+        rn           ,
         || { Command::Terminate }));
 
 named!(command <&[u8], Command>,
@@ -64,6 +60,16 @@ named!(command <&[u8], Command>,
         rcpt |
         data |
         quit
+    )
+);
+
+named!(email_address <&[u8], EmailAddress>,
+   chain!(
+       tag!("<") ~
+       local: map_res!(is_not!("@"), str::from_utf8) ~
+       tag!("@") ~
+       domain: map_res!(take_until_either!("\r\n"), str::from_utf8) ,
+       || { EmailAddress { local: local.to_string(), domain: domain.to_string() } }
     )
 );
 
@@ -83,15 +89,15 @@ pub fn parse(req: &str) -> Result<Command, u8> {
 
 #[test]
 fn test_parser() {
-    assert_eq!(mail(&b"MAIL gnu\r\n"[..]), IResult::Done(&b""[..], Command::Mail("gnu")));
-    assert_eq!(helo(&b"HELO gnu\r\n"[..]), IResult::Done(&b""[..], Command::Helo("gnu")));
-    assert_eq!(rcpt(&b"RCPT gnu\r\n"[..]), IResult::Done(&b""[..], Command::Rcpt("gnu")));
+    assert_eq!(mail(&b"MAIL gnu\r\n"[..]), IResult::Done(&b""[..], Command::Mail("gnu".to_string())));
+    assert_eq!(helo(&b"HELO gnu\r\n"[..]), IResult::Done(&b""[..], Command::Helo("gnu".to_string())));
+    assert_eq!(rcpt(&b"RCPT gnu\r\n"[..]), IResult::Done(&b""[..], Command::Rcpt("gnu".to_string())));
     assert_eq!(
         command(&b"HELO smtp.gnu.org\r\n"[..]),
-        IResult::Done(&b""[..], Command::Helo("smtp.gnu.org"))
+        IResult::Done(&b""[..], Command::Helo("smtp.gnu.org".to_string()))
     );
     assert_eq!(
         command(&b"MAIL FROM:<bill@gnu.org>\r\n"[..]),
-        IResult::Done(&b""[..], Command::Mail("FROM:<bill@gnu.org>"))
+        IResult::Done(&b""[..], Command::Mail("FROM:<bill@gnu.org>".to_string()))
     );
 }

@@ -1,4 +1,17 @@
-pub type EmailAddress = String;
+use std::fmt;
+
+#[derive(Debug,PartialEq)]
+pub struct EmailAddress {
+    pub local: String,
+    pub domain: String
+}
+
+impl fmt::Display for EmailAddress {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}@{}", self.local, self.domain)
+    }
+}
+
 pub type ServerAddress  = String;
 
 #[derive(Debug,PartialEq)]
@@ -9,3 +22,4 @@ pub enum Command {
     Data,                // mail message to follow
     Terminate            // client has disconnected
 }
+

@@ -56,7 +56,7 @@ pub fn handle_request(stream: TcpStream) {
                     }
                 };
             },
-            Ok(Command::Terminate) => {},
+            Ok(Command::Terminate) => break,
             Err(_) => {
                 buf.respond(ResponseCode::CommandUnrecognised);
                 println!("Command not recognised: {:?}", request_string);
@@ -68,6 +68,9 @@ pub fn handle_request(stream: TcpStream) {
 }
 
 
+// TODO: implement a PartialEmail struct
+// which can be converted to an Email,
+// so we can remove the Options from Email.
 #[derive(Debug)]
 pub struct Email {
     pub to: Option<EmailAddress>,
