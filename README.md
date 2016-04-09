@@ -17,6 +17,7 @@ This connects to the rust server that you just started.
 The idea is to have a set of corunning processes that cooperate via a database.
 
 I've not thought this through too thoroughly but the processes might look something like:
+
 1. The core SMTP server
  - Handles incoming TCP connections, communicating SMTP with clients.
  - Receives and parses SMTP commands, storing new `inbound_message` records in the database.
