@@ -9,21 +9,21 @@ pub fn handle_request(stream: TcpStream) {
     let conn = store::open();
     let mut buf = BufStream::new(stream);
     let mut request_string = String::new();
-    let mut email = Email {to: None, from: None, body: None};
+    let mut email = PartialEmail {to: None, from: None, body: None};
     loop {
         buf.read_line(&mut request_string).unwrap();
         match parse_request::parse(&request_string) {
             Ok(Command::Helo(addr)) => {
-                println!("Got HELO from {:?}", addr);
+                println!("Got HELO: {:?}", addr);
                 buf.respond(ResponseCode::Hello);
             },
             Ok(Command::Mail(from)) => {
-                println!("Got MAIL from {:?}", from);
+                println!("Got MAIL: {:?}", from);
                 buf.respond(ResponseCode::Ok);
                 email.from = Some(from);
             },
             Ok(Command::Rcpt(recipient)) => {
-                println!("Got RCPT {:?}", recipient);
+                println!("Got RCPT: {:?}", recipient);
                 buf.respond(ResponseCode::Ok);
                 email.to = Some(recipient);
             },
@@ -44,19 +44,28 @@ pub fn handle_request(stream: TcpStream) {
                     body_string.clear();
                 }
                 email.body = Some(body.concat());
-                println!("{:?}", email);
-                match store::save(&conn, &email) {
-                    Ok(_) => {
-                        println!("Message saved for delivery");
-                        buf.respond(ResponseCode::SavedForDelivery);
-                    },
-                    Err(err) => {
-                        println!("Error saving message: {}", err);
-                        buf.respond(ResponseCode::TransactionFailed);
+                let full_email = email.to_full_email();
+                if let Some(e) = full_email {
+                    match store::save(&conn, &e) {
+                        Ok(_) => {
+                            println!("Message saved for delivery");
+                            buf.respond(ResponseCode::SavedForDelivery);
+                        },
+                        Err(err) => {
+                            println!("Error saving message: {}", err);
+                            buf.respond(ResponseCode::TransactionFailed);
+                        }
                     }
+                }
+                else {
+                    println!("Error saving message: Email was partial");
+                    buf.respond(ResponseCode::TransactionFailed);
                 };
             },
-            Ok(Command::Terminate) => break,
+            Ok(Command::Terminate) => {
+                println!("Got QUIT from client");
+                break
+            },
             Err(_) => {
                 buf.respond(ResponseCode::CommandUnrecognised);
                 println!("Command not recognised: {:?}", request_string);
@@ -67,15 +76,29 @@ pub fn handle_request(stream: TcpStream) {
     };
 }
 
-
-// TODO: implement a PartialEmail struct
-// which can be converted to an Email,
-// so we can remove the Options from Email.
 #[derive(Debug)]
-pub struct Email {
+pub struct PartialEmail {
     pub to: Option<EmailAddress>,
     pub from: Option<EmailAddress>,
     pub body: Option<String>
+}
+
+impl PartialEmail {
+    pub fn to_full_email(&self) -> Option<Email> {
+        if let (Some(to), Some(from), Some(body)) = (self.to.clone(), self.from.clone(), self.body.clone()) {
+            Some(Email { to: to, from: from, body: body })
+        }
+        else {
+            None
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Email {
+    pub to: EmailAddress,
+    pub from: EmailAddress,
+    pub body: String
 }
 
 #[derive(Debug)]
@@ -95,7 +118,7 @@ impl ToString for ResponseCode {
             &ResponseCode::Ok => "250 Requested mail action completed.\n".to_string(),
             &ResponseCode::Hello => "250 rust-smtp at your service.\n".to_string(),
             &ResponseCode::StartMailInput => "354 End data with <CR><LF>.<CR><LF>\n".to_string(),
-            &ResponseCode::CommandUnrecognised => "500 Syntax error, command unrecognised.\n".to_string(),
+            &ResponseCode::CommandUnrecognised => "500 Syntax error, command not recognised.\n".to_string(),
             &ResponseCode::ArgumentError => "501 Syntax error in command arguments\n".to_string(),
             &ResponseCode::TransactionFailed => "554 Transaction failed\n".to_string(),
             &ResponseCode::SavedForDelivery => "554 Saved for delivery\n".to_string()
@@ -117,7 +140,7 @@ impl<S: Read + Write> WriteLine for BufStream<S> {
             ResponseCode::Ok => "250 Requested mail action completed.",
             ResponseCode::Hello => "250 rust-smtp at your service.",
             ResponseCode::StartMailInput => "354 End data with <CR><LF>.<CR><LF>",
-            ResponseCode::CommandUnrecognised => "500 Syntax error, command unrecognised.",
+            ResponseCode::CommandUnrecognised => "500 Syntax error, command not recognised.",
             ResponseCode::ArgumentError => "501 Syntax error in command arguments",
             ResponseCode::TransactionFailed => "554 Transaction failed",
             ResponseCode::SavedForDelivery => "554 Saved for delivery"

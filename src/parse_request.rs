@@ -40,6 +40,7 @@ named!(rcpt <&[u8], Command>,
     chain!(
        tag!("RCPT")    ~
        space                ~
+       tag!("TO:")            ~
        address: email_address ~
        rn                   ,
        || { Command::Rcpt(address) }
@@ -68,7 +69,8 @@ named!(email_address <&[u8], EmailAddress>,
        tag!("<") ~
        local: map_res!(is_not!("@"), str::from_utf8) ~
        tag!("@") ~
-       domain: map_res!(take_until_either!("\r\n"), str::from_utf8) ,
+       domain: map_res!(is_not!(">"), str::from_utf8) ~
+       tag!(">") ,
        || { EmailAddress { local: local.to_string(), domain: domain.to_string() } }
     )
 );
@@ -89,15 +91,38 @@ pub fn parse(req: &str) -> Result<Command, u8> {
 
 #[test]
 fn test_parser() {
-    assert_eq!(mail(&b"MAIL gnu\r\n"[..]), IResult::Done(&b""[..], Command::Mail("gnu".to_string())));
-    assert_eq!(helo(&b"HELO gnu\r\n"[..]), IResult::Done(&b""[..], Command::Helo("gnu".to_string())));
-    assert_eq!(rcpt(&b"RCPT gnu\r\n"[..]), IResult::Done(&b""[..], Command::Rcpt("gnu".to_string())));
-    assert_eq!(
-        command(&b"HELO smtp.gnu.org\r\n"[..]),
-        IResult::Done(&b""[..], Command::Helo("smtp.gnu.org".to_string()))
-    );
-    assert_eq!(
-        command(&b"MAIL FROM:<bill@gnu.org>\r\n"[..]),
-        IResult::Done(&b""[..], Command::Mail("FROM:<bill@gnu.org>".to_string()))
-    );
+   assert_eq!(
+      email_address(&b"<bill@gnu.org>"[..]),
+      IResult::Done(&b""[..], EmailAddress { local: "bill".to_string(), domain: "gnu.org".to_string() })
+   );
+   assert_eq!(
+      command(&b"HELO gnu\r\n"[..]),
+      IResult::Done(&b""[..], Command::Helo("gnu".to_string()))
+   );
+   assert_eq!(
+      command(&b"MAIL FROM:<bill@gnu.org>\r\n"[..]),
+      IResult::Done(
+         &b""[..],
+         Command::Mail(
+            EmailAddress { local: "bill".to_string(), domain: "gnu.org".to_string() }
+         )
+      )
+   );
+   assert_eq!(
+      command(&b"RCPT TO:<bill@gnu.org>\r\n"[..]),
+      IResult::Done(
+         &b""[..],
+         Command::Rcpt(
+            EmailAddress { local: "bill".to_string(), domain: "gnu.org".to_string() }
+         )
+      )
+   );
+   assert_eq!(
+      command(&b"DATA\r\n"[..]),
+      IResult::Done(&b""[..], Command::Data)
+   );
+   assert_eq!(
+      command(&b"QUIT\r\n"[..]),
+      IResult::Done(&b""[..], Command::Terminate)
+   );
 }

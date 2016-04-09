@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug,PartialEq,Clone)]
 pub struct EmailAddress {
     pub local: String,
     pub domain: String

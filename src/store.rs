@@ -24,5 +24,5 @@ pub fn open() -> SqliteConnection {
 
 pub fn save(conn: &SqliteConnection, message: &request::Email) -> Result<i32, SqliteError> {
     conn.execute("INSERT INTO inbound_messages (recipient, sender, body) VALUES ($1, $2, $3)",
-                 &[&message.to.unwrap().to_string(), &message.from.unwrap().to_string(), &message.body])
+                 &[&message.to.to_string(), &message.from.to_string(), &message.body])
 }
