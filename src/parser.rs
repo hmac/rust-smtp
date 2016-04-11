@@ -1,7 +1,7 @@
 use nom::{IResult, space, not_line_ending};
 
 use std::str;
-use command::{Command, EmailAddress};
+use types::{Command, EmailAddress};
 
 named!(rn, alt!(tag!("\r\n") | tag!("\n")));
 
@@ -30,7 +30,7 @@ named!(mail <&[u8], Command>,
        tag!("MAIL")         ~
        space                ~
        tag!("FROM:")        ~
-       address: email_address  ~
+       address: encoded_email_address  ~
        rn                   ,
        || { Command::Mail(address) }
    )
@@ -41,7 +41,7 @@ named!(rcpt <&[u8], Command>,
        tag!("RCPT")    ~
        space                ~
        tag!("TO:")            ~
-       address: email_address ~
+       address: encoded_email_address ~
        rn                   ,
        || { Command::Rcpt(address) }
    )
@@ -64,13 +64,22 @@ named!(command <&[u8], Command>,
     )
 );
 
-named!(email_address <&[u8], EmailAddress>,
+named!(encoded_email_address <&[u8], EmailAddress>,
    chain!(
        tag!("<") ~
        local: map_res!(is_not!("@"), str::from_utf8) ~
        tag!("@") ~
        domain: map_res!(is_not!(">"), str::from_utf8) ~
        tag!(">") ,
+       || { EmailAddress { local: local.to_string(), domain: domain.to_string() } }
+    )
+);
+
+named!(pub email_address <&[u8], EmailAddress>,
+   chain!(
+       local: map_res!(is_not!("@"), str::from_utf8) ~
+       tag!("@") ~
+       domain: map_res!(is_not!(">"), str::from_utf8) ,
        || { EmailAddress { local: local.to_string(), domain: domain.to_string() } }
     )
 );
@@ -92,12 +101,25 @@ pub fn parse(req: &str) -> Result<Command, u8> {
 #[test]
 fn test_parser() {
    assert_eq!(
-      email_address(&b"<bill@gnu.org>"[..]),
-      IResult::Done(&b""[..], EmailAddress { local: "bill".to_string(), domain: "gnu.org".to_string() })
+      encoded_email_address(&b"<bill@gnu.org>"[..]),
+      IResult::Done(
+         &b""[..],
+         EmailAddress { local: "bill".to_string(), domain: "gnu.org".to_string() }
+      )
+   );
+   assert_eq!(
+      email_address(&b"bill@gnu.org"[..]),
+      IResult::Done(
+         &b""[..],
+         EmailAddress { local: "bill".to_string(), domain: "gnu.org".to_string() }
+      )
    );
    assert_eq!(
       command(&b"HELO gnu\r\n"[..]),
-      IResult::Done(&b""[..], Command::Helo("gnu".to_string()))
+      IResult::Done(
+         &b""[..],
+         Command::Helo("gnu".to_string())
+      )
    );
    assert_eq!(
       command(&b"MAIL FROM:<bill@gnu.org>\r\n"[..]),

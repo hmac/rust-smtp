@@ -2,8 +2,8 @@ use std::net::{TcpStream};
 use std::io::{Read, Write, BufRead};
 use bufstream::BufStream;
 use store;
-use parse_request;
-use command::{Command, EmailAddress};
+use parser;
+use types::{Command, Email, EmailAddress};
 
 pub fn handle_request(stream: TcpStream) {
     let conn = store::open();
@@ -12,7 +12,7 @@ pub fn handle_request(stream: TcpStream) {
     let mut email = PartialEmail {to: None, from: None, body: None};
     loop {
         buf.read_line(&mut request_string).unwrap();
-        match parse_request::parse(&request_string) {
+        match parser::parse(&request_string) {
             Ok(Command::Helo(addr)) => {
                 println!("Got HELO: {:?}", addr);
                 buf.respond(ResponseCode::Hello);
@@ -46,7 +46,7 @@ pub fn handle_request(stream: TcpStream) {
                 email.body = Some(body.concat());
                 let full_email = email.to_full_email();
                 if let Some(e) = full_email {
-                    match store::save(&conn, &e) {
+                    match store::save_inbound_message(&conn, &e) {
                         Ok(_) => {
                             println!("Message saved for delivery");
                             buf.respond(ResponseCode::SavedForDelivery);
@@ -76,6 +76,7 @@ pub fn handle_request(stream: TcpStream) {
     };
 }
 
+
 #[derive(Debug)]
 pub struct PartialEmail {
     pub to: Option<EmailAddress>,
@@ -85,20 +86,14 @@ pub struct PartialEmail {
 
 impl PartialEmail {
     pub fn to_full_email(&self) -> Option<Email> {
-        if let (Some(to), Some(from), Some(body)) = (self.to.clone(), self.from.clone(), self.body.clone()) {
+        if let (Some(to), Some(from), Some(body)) =
+            (self.to.clone(), self.from.clone(), self.body.clone()) {
             Some(Email { to: to, from: from, body: body })
         }
         else {
             None
         }
     }
-}
-
-#[derive(Debug)]
-pub struct Email {
-    pub to: EmailAddress,
-    pub from: EmailAddress,
-    pub body: String
 }
 
 #[derive(Debug)]
@@ -135,6 +130,7 @@ impl<S: Read + Write> WriteLine for BufStream<S> {
     fn write_line(&mut self, data: &str) {
         self.write(data.as_bytes()).unwrap();
     }
+    // TODO: use ResponseCode.ToString here
     fn respond(&mut self, code: ResponseCode) {
         let response = match code {
             ResponseCode::Ok => "250 Requested mail action completed.",
