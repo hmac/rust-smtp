@@ -1,0 +1,36 @@
+server:
+email comes in
+goes to emails
+
+
+sorter:
+looks for emails without 
+
+client:
+looks for emails that need forwarding on to another MTA
+how do we determine this?
+-> if the recipient is local, we don't need to foward
+how do we determine if the recipient is local?
+-> have a table of local_users
+-> if recipient is in local_users, we deliver locally
+what does it mean to deliver locally?
+-> I think in this case it makes sense to store the email in a new table,
+  local_messages or something
+
+server:
+save new emails in emails
+
+sorter:
+look for emails with `type IS NULL`
+if recipient is local, set `type = 'local'`
+else, set `type = 'remote'`
+
+client:
+look for emails with `type = 'remote'`
+connect to remote server and deliver
+
+
+database tables:
+
+emails
+local_users

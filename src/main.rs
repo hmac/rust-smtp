@@ -53,7 +53,7 @@ fn start_sorter() {
                 store::save_local_message(&conn, &email);
             }
             else {
-                store::save_outbound_message(&conn, &email.email);
+                store::save_outbound_message(&conn, &email);
             }
         }
 

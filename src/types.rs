@@ -52,6 +52,7 @@ pub struct Email {
     pub body: String
 }
 
+#[derive(Debug)]
 pub struct InboundEmail {
     pub id: i64,
     pub email: Email
