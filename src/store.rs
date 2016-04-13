@@ -31,40 +31,29 @@ pub fn setup() {
 pub fn save_inbound_message(conn: &SqliteConnection, message: &Email) -> Result<i64, SqliteError> {
     // This must succeed or las_insert_rowid will be invalid
     try!(conn.execute(
-        "INSERT INTO inbound_messages (recipient, sender, body) VALUES ($1, $2, $3)",
+        "INSERT INTO emails (recipient, sender, body) VALUES ($1, $2, $3)",
         &[&message.to.to_string(), &message.from.to_string(), &message.body]
     ));
     Ok(conn.last_insert_rowid())
 
 }
 
-pub fn save_local_message(conn: &SqliteConnection, inbound_email: &InboundEmail) -> Result<i32, SqliteError> {
-    let message = &inbound_email.email;
-    let transaction = conn.transaction();
+pub fn set_local_message(conn: &SqliteConnection, id: i64) -> Result<i32, SqliteError> {
     conn.execute(
-        "UPDATE local_messages SET type='local' WHERE ID = ?",
-        &[&inbound_email.id]
-    )
-    // get the ID of this new row, somehow
-    // conn.execute("UPDATE inbound_messages SET local_message_id = new_id")
-}
-
-pub fn save_outbound_message(conn: &SqliteConnection, message: &InboundEmail) -> Result<i32, SqliteError> {
-    conn.execute(
-        "UPDATE local_messages SET type='remote' WHERE ID = ?",
-        &[&message.id]
+        "UPDATE emails SET type='local' WHERE ID = ?",
+        &[&id]
     )
 }
 
-pub fn save_sent_message(conn: &SqliteConnection, message: &Email) -> Result<i32, SqliteError> {
+pub fn set_outbound_message(conn: &SqliteConnection, id: i64) -> Result<i32, SqliteError> {
     conn.execute(
-        "INSERT INTO sent_messages (recipient, sender, body) VALUES ($1, $2, $3)",
-        &[&message.to.to_string(), &message.from.to_string(), &message.body]
+        "UPDATE emails SET type='remote' WHERE ID = ?",
+        &[&id]
     )
 }
 
 // TODO: use Result for this
-pub fn new_inbound_messages(conn: &SqliteConnection) -> Vec<InboundEmail> {
+pub fn new_inbound_messages(conn: &SqliteConnection) -> Vec<(i64, Email)> {
     let mut statement = conn.prepare(
         "SELECT id, recipient, sender, body from emails WHERE type IS NULL"
     ).unwrap();
@@ -77,17 +66,14 @@ pub fn new_inbound_messages(conn: &SqliteConnection) -> Vec<InboundEmail> {
         let to = EmailAddress::from_str(&row.get::<String>(1));
         let from = EmailAddress::from_str(&row.get::<String>(2)).unwrap();
         let body = row.get(3);
-        let email = InboundEmail {
-            id: id,
-            email: Email { to: to.unwrap(), from: from, body: body }
-        };
-        messages.push(email)
+        let email = Email { to: to.unwrap(), from: from, body: body };
+        messages.push((id, email))
     };
     messages
 }
 
 // TODO: use Result for this
-pub fn new_outbound_messages(conn: &SqliteConnection) -> Vec<InboundEmail> {
+pub fn new_outbound_messages(conn: &SqliteConnection) -> Vec<(i64, Email)> {
     let mut statement = conn.prepare(
         "SELECT id, recipient, sender, body from emails WHERE type IS 'remote'"
     ).unwrap();
@@ -100,11 +86,8 @@ pub fn new_outbound_messages(conn: &SqliteConnection) -> Vec<InboundEmail> {
         let to = EmailAddress::from_str(&row.get::<String>(1));
         let from = EmailAddress::from_str(&row.get::<String>(2)).unwrap();
         let body = row.get(3);
-        let email = InboundEmail {
-            id: id,
-            email: Email { to: to.unwrap(), from: from, body: body }
-        };
-        messages.push(email)
+        let email = Email { to: to.unwrap(), from: from, body: body };
+        messages.push((id, email))
     };
     messages
 }

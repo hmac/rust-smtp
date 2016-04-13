@@ -46,14 +46,15 @@ fn start_sorter() {
     let conn = store::open();
     loop {
         let new_messages = store::new_inbound_messages(&conn);
-        for email in new_messages {
+        for (id, email) in new_messages {
+            println!("NEW INBOUND MESSAGE: {} {:?}", id, email);
             // Determine if the recipient is local
             // For now we'll assume anything addressed to harry@local is local
-            if email.email.to.local == "harry" && email.email.to.domain == "local" {
-                store::save_local_message(&conn, &email);
+            if email.to.local == "harry" && email.to.domain == "local" {
+                store::set_local_message(&conn, id).unwrap();
             }
             else {
-                store::save_outbound_message(&conn, &email);
+                store::set_outbound_message(&conn, id).unwrap();
             }
         }
 
@@ -65,8 +66,8 @@ fn start_client() {
     let conn = store::open();
     loop {
         let messages_to_send = store::new_outbound_messages(&conn);
-        for email in messages_to_send {
-            println!("Found email: {:?}", email);
+        for (id, email) in messages_to_send {
+            println!("Found remote email: {:?}", email);
             // Send email to server
             // ...
         }
