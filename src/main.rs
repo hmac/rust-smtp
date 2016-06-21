@@ -22,7 +22,7 @@ fn main() {
     let client = thread::spawn(move|| { start_client() });
 
     // Let the server live on
-    server.join();
+    server.join().unwrap();
 }
 
 fn start_server() {

@@ -31,7 +31,7 @@ impl FromStr for EmailAddress {
     type Err = ParseEmailAddressError;
     fn from_str(s: &str) -> Result<EmailAddress, ParseEmailAddressError> {
         match parser::email_address(s.as_bytes()) {
-            IResult::Done(rest, addr) => Ok(addr),
+            IResult::Done(_, addr) => Ok(addr),
             _ => Err(1)
         }
     }
@@ -50,10 +50,4 @@ pub struct Email {
     pub to: EmailAddress,
     pub from: EmailAddress,
     pub body: String
-}
-
-#[derive(Debug)]
-pub struct InboundEmail {
-    pub id: i64,
-    pub email: Email
 }

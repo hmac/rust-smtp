@@ -2,7 +2,7 @@ extern crate rusqlite;
 
 use rusqlite::{SqliteConnection, SqliteError};
 use std::path::Path;
-use types::{InboundEmail, Email, EmailAddress};
+use types::{Email, EmailAddress};
 use std::str::FromStr;
 
 // Open a new Sqlite connection
@@ -25,7 +25,7 @@ pub fn setup() {
         type text)",
         &[]
     ).unwrap();
-    conn.close();
+    conn.close().unwrap();
 }
 
 pub fn save_inbound_message(conn: &SqliteConnection, message: &Email) -> Result<i64, SqliteError> {
